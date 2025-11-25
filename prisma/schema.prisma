@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid()) @db.Uuid
+  email         String?         @unique
+  name          String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  studySessions StudySession[]
+  breaks        Break[]
+  moodLogs      MoodLog[]
+  habits        Habit[]
+  checkIns      HabitCheckIn[]
+}
+
+model StudySession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime
+  endedAt   DateTime?
+  focusArea String?
+  notes     String?
+
+  @@index([userId, startedAt])
+}
+
+model Break {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime
+  endedAt   DateTime?
+  type      BreakType
+  notes     String?
+
+  @@index([userId, startedAt])
+}
+
+model MoodLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordedAt DateTime @default(now())
+  mood       Int      @db.SmallInt // Range: 1 (very low) - 5 (great)
+  energy     Int?     @db.SmallInt // Optional energy score
+  stress     Int?     @db.SmallInt // Optional stress score
+  notes      String?
+
+  @@index([userId, recordedAt])
+}
+
+model Habit {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @db.Uuid
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  targetPerWeek Int?
+  archived      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  checkIns      HabitCheckIn[]
+
+  @@index([userId, archived])
+  @@unique([userId, name])
+}
+
+model HabitCheckIn {
+  id          String   @id @default(uuid()) @db.Uuid
+  habitId     String   @db.Uuid
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  value       Int?     @db.SmallInt // Optional numeric score for the check-in
+  notes       String?
+
+  @@index([userId, completedAt])
+}
+
+enum BreakType {
+  SHORT
+  LONG
+  MOVEMENT
+  MEAL
+  OTHER
+}
