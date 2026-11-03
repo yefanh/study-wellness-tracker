@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -36,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
+# typescript (next-env.d.ts is committed so `tsc` works in CI before a build)
 *.tsbuildinfo
-next-env.d.ts
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+!.env.example

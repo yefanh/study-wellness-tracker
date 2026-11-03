@@ -7,12 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// All timestamps are `timestamptz`: Postgres stores an absolute instant (UTC) and
+// converts with AT TIME ZONE when we group records by the user's local day.
+
 model User {
-  id            String          @id @default(uuid()) @db.Uuid
-  email         String?         @unique
+  id            String         @id @default(uuid()) @db.Uuid
+  email         String         @unique
   name          String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  /// IANA time zone that decides which calendar day a record belongs to.
+  timezone      String         @default("America/New_York")
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   studySessions StudySession[]
   breaks        Break[]
   moodLogs      MoodLog[]
@@ -20,38 +24,41 @@ model User {
   checkIns      HabitCheckIn[]
 }
 
+/// A focus block. `endedAt` is null while the session is running.
+/// migration.sql adds a partial unique index: at most one running session per user.
 model StudySession {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  startedAt DateTime
-  endedAt   DateTime?
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime  @default(now()) @db.Timestamptz(3)
+  endedAt   DateTime? @db.Timestamptz(3)
   focusArea String?
-  notes     String?
 
   @@index([userId, startedAt])
 }
 
+/// A break is logged after it happens, so it always has both ends.
 model Break {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @db.Uuid
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  startedAt DateTime
-  endedAt   DateTime?
+  startedAt DateTime  @db.Timestamptz(3)
+  endedAt   DateTime  @db.Timestamptz(3)
   type      BreakType
   notes     String?
 
   @@index([userId, startedAt])
 }
 
+/// migration.sql adds CHECK constraints: every score is between 1 and 5.
 model MoodLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @db.Uuid
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recordedAt DateTime @default(now())
-  mood       Int      @db.SmallInt // Range: 1 (very low) - 5 (great)
-  energy     Int?     @db.SmallInt // Optional energy score
-  stress     Int?     @db.SmallInt // Optional stress score
+  recordedAt DateTime @default(now()) @db.Timestamptz(3)
+  mood       Int      @db.SmallInt
+  energy     Int?     @db.SmallInt
+  stress     Int?     @db.SmallInt
   notes      String?
 
   @@index([userId, recordedAt])
@@ -62,27 +69,26 @@ model Habit {
   userId        String         @db.Uuid
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
-  targetPerWeek Int?
+  targetPerWeek Int            @default(7) @db.SmallInt
   archived      Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   checkIns      HabitCheckIn[]
 
-  @@index([userId, archived])
   @@unique([userId, name])
 }
 
+/// One row per habit per local day, so checking in twice is a no-op (idempotent).
 model HabitCheckIn {
   id          String   @id @default(uuid()) @db.Uuid
   habitId     String   @db.Uuid
   habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
   userId      String   @db.Uuid
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completedAt DateTime @default(now())
-  value       Int?     @db.SmallInt // Optional numeric score for the check-in
-  notes       String?
+  day         DateTime @db.Date
+  completedAt DateTime @default(now()) @db.Timestamptz(3)
 
-  @@index([userId, completedAt])
+  @@unique([habitId, day])
+  @@index([userId, day])
 }
 
 enum BreakType {
