@@ -1,39 +1,61 @@
 {
   "name": "study-wellness-tracker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3010",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "prisma": "prisma",
+    "start": "next start -p 3010",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "codegen:check": "graphql-codegen --config codegen.ts --check",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "test:unit": "vitest run",
+    "test:e2e": "tsx tests/e2e/prepare-db.ts && playwright test",
+    "build:e2e": "NEXT_DIST_DIR=.next-e2e next build",
+    "test": "npm run test:unit && npm run build:e2e && npm run test:e2e"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
-    "graphql": "^16.12.0",
-    "graphql-yoga": "^5.16.2",
-    "next": "16.0.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "@prisma/client": "6.19.0",
+    "dataloader": "2.2.3",
+    "graphql": "16.12.0",
+    "graphql-yoga": "5.16.2",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "2.15.4",
+    "server-only": "0.0.1",
+    "zod": "3.25.76"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
-    "prisma": "^6.19.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@axe-core/playwright": "4.14.0",
+    "@graphql-codegen/cli": "5.0.7",
+    "@graphql-codegen/client-preset": "4.8.3",
+    "@graphql-codegen/typescript": "4.1.6",
+    "@graphql-codegen/typescript-resolvers": "4.5.2",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.35",
+    "prisma": "6.19.0",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
   }
 }

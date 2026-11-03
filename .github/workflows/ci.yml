@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # A throwaway Postgres for this job; the tests create their own databases inside it.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: study_wellness_tracker
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5440/study_wellness_tracker?schema=public
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5440/study_wellness_test?schema=public
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5440/study_wellness_e2e?schema=public
+      DEMO_USER_EMAIL: demo@studywellness.local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: GraphQL types are up to date with the schema
+        run: npm run codegen:check
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint (includes jsx-a11y rules)
+        run: npm run lint
+
+      - name: Unit + integration tests (Vitest against real Postgres)
+        run: npm run test:unit
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Production build
+        run: npm run build:e2e
+
+      - name: End-to-end tests (Playwright)
+        run: npm run test:e2e
+
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
